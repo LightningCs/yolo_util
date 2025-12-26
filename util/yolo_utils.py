@@ -21,7 +21,6 @@ class YoloConfig:
     DEFAULT_BATCH_SIZE = 16
     DEFAULT_EPOCHS = 100
     DEFAULT_IMGSZ = 640
-    DEFAULT_WORKER = 0
     DEFAULT_TRAINT_RATE = 0.7
     DEFAULT_VAL_RATE = 0.3
     DEFAULT_TEST_RATE = 0.2
@@ -29,6 +28,7 @@ class YoloConfig:
     DEFAULT_HSV_V = 0.4
     DEFAULT_TRANSLATE = 0.1
     DEFAULT_DEVICE = 'cpu'
+    DEFAULT_WORKERS = None
 
 
 def load_categories(classes_path: str) -> dict:
@@ -139,6 +139,10 @@ def split_datasets(classes_path: str,
         train_rate (float):         训练集占比(默认0.7)
         val_rate (float):           验证集占比(默认0.3)
     """
+
+    if not os.path.exists(os.path.join(target_path)):
+        print('创建根目录')
+        os.mkdir(target_path)
 
     if not os.path.exists(os.path.join(target_path, 'images')):
         print('创建图片目录')
@@ -354,7 +358,7 @@ def train_model(model: ultralytics.YOLO,
                 project: str,
                 lr0: float,
                 lrf: float,
-                worker=YoloConfig.DEFAULT_WORKER,
+                workers=YoloConfig.DEFAULT_WORKERS,
                 device=None,
                 batch=YoloConfig.DEFAULT_BATCH_SIZE,
                 epochs=YoloConfig.DEFAULT_EPOCHS,
@@ -377,7 +381,7 @@ def train_model(model: ultralytics.YOLO,
         project (str):              项目目录名称
         lr0 (float):                初始学习率
         lrf (float):                最终学习率
-        worker (int):               用于数据加载的工作线程数（每个 RANK ，如果是多 GPU 训练）。影响数据预处理和输入模型的速度，在多 GPU 设置中尤其有用
+        workers (int):              用于数据加载的工作线程数（每个 RANK ，如果是多 GPU 训练）。影响数据预处理和输入模型的速度，在多 GPU 设置中尤其有用
         device (int | list):        指定用于训练的计算设备：单个 GPU（device=0），多个 GPU（device=[0,1]），CPU（device=cpu），适用于 Apple 芯片的 MPS（device=mps），或自动选择最空闲的 GPU（device=-1）或多个空闲 GPU （device=[-1,-1])
         batch (int):                每个批次的图片数量(默认16)
         epochs (int):               训练总轮数(默认100)
@@ -405,7 +409,7 @@ def train_model(model: ultralytics.YOLO,
                           name=f'{model_name}/train',
                           lr0=lr0,
                           lrf=lrf,
-                          worker=worker,
+                          workers=workers,
                           device=device,
                           exist_ok=True,
                           resume=resume,
