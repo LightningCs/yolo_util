@@ -165,3 +165,37 @@ def import_img(import_url: str,
                                        'files_as_tasks_list': False})
 
         print('处理完毕...')
+
+
+def get_image_label_info(ip: str,
+                         port: int,
+                         auth: str,
+                         image_id: int,
+                         project_id: int) -> dict:
+    """
+    根据图片id及项目id获取图片的标注信息
+    
+    根据图片id及项目id获取图片的标注信息
+    
+    Args:
+        ip (str):               ip
+        port (int):             端口
+        auth (str):             用户api_key
+        image_id (int):         图片id
+        project_id (int):       项目id
+
+    Returns:
+        res (dict):             图片的标签信息
+    """
+    # 请求路径
+    url = f"http://{ip}:{port}/api/tasks/{image_id}?project={project_id}"
+    # 封装请求头
+    headers = {
+        'Authorization': auth
+    }
+    # 请求结果
+    response = requests.request("GET", url, headers=headers, data={})
+    res = json.loads(response.text)
+    
+    return res
+

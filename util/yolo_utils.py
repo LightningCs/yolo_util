@@ -21,8 +21,8 @@ class YoloConfig:
     DEFAULT_BATCH_SIZE = 16
     DEFAULT_EPOCHS = 100
     DEFAULT_IMGSZ = 640
-    DEFAULT_WORKER = 0
-    DEFAULT_TRAINT_RATE = 0.7
+    DEFAULT_WORKERS = 0
+    DEFAULT_TRAINT_RATE = 0.7 
     DEFAULT_VAL_RATE = 0.3
     DEFAULT_TEST_RATE = 0.2
     DEFAULT_CONF = 0.25
@@ -40,7 +40,7 @@ def load_categories(classes_path: str) -> dict:
     Args:
         classes_path (str):         分类文件所在路径
 
-    Return:
+    Returns:
         categories_map (dict):      分类编号映射
     """
     categories_map = {}
@@ -72,7 +72,7 @@ def gen_datasets_conf(classes_path: str,
         val_path (str):             验证图片集合存放路径
         test_path (str):            测试图片集合存放路径
 
-    Return:
+    Returns:
         datasets_conf_path (str):   数据集配置文件存放路径
     """
     # 分类字典
@@ -139,6 +139,10 @@ def split_datasets(classes_path: str,
         train_rate (float):         训练集占比(默认0.7)
         val_rate (float):           验证集占比(默认0.3)
     """
+    
+    if not os.path.exists(target_path):
+        print('创建根目录')
+        os.mkdir(target_path)
 
     if not os.path.exists(os.path.join(target_path, 'images')):
         print('创建图片目录')
@@ -354,7 +358,7 @@ def train_model(model: ultralytics.YOLO,
                 project: str,
                 lr0: float,
                 lrf: float,
-                worker=YoloConfig.DEFAULT_WORKER,
+                workers=YoloConfig.DEFAULT_WORKERS,
                 device=None,
                 batch=YoloConfig.DEFAULT_BATCH_SIZE,
                 epochs=YoloConfig.DEFAULT_EPOCHS,
@@ -377,7 +381,7 @@ def train_model(model: ultralytics.YOLO,
         project (str):              项目目录名称
         lr0 (float):                初始学习率
         lrf (float):                最终学习率
-        worker (int):               用于数据加载的工作线程数（每个 RANK ，如果是多 GPU 训练）。影响数据预处理和输入模型的速度，在多 GPU 设置中尤其有用
+        workers (int):              用于数据加载的工作线程数（每个 RANK ，如果是多 GPU 训练）。影响数据预处理和输入模型的速度，在多 GPU 设置中尤其有用
         device (int | list):        指定用于训练的计算设备：单个 GPU（device=0），多个 GPU（device=[0,1]），CPU（device=cpu），适用于 Apple 芯片的 MPS（device=mps），或自动选择最空闲的 GPU（device=-1）或多个空闲 GPU （device=[-1,-1])
         batch (int):                每个批次的图片数量(默认16)
         epochs (int):               训练总轮数(默认100)
@@ -389,7 +393,7 @@ def train_model(model: ultralytics.YOLO,
         hsv_v (float):              通过一小部分修改图像的明度（亮度），帮助模型在各种光照条件下表现良好
         translate (float):          将图像按图像尺寸的一小部分进行水平和垂直平移，有助于学习检测部分可见的物体
 
-    Return:
+    Returns:
         results (dict):             模型训练结果
         model_name (str):           模型名称
     """
@@ -405,7 +409,7 @@ def train_model(model: ultralytics.YOLO,
                           name=f'{model_name}/train',
                           lr0=lr0,
                           lrf=lrf,
-                          worker=worker,
+                          workers=workers,
                           device=device,
                           exist_ok=True,
                           resume=resume,
@@ -434,7 +438,7 @@ def val_model(model: ultralytics.YOLO,
         imgsz (int):                图片大小(若rect为False，则为imgsz*imgsz, 默认640)
         rect (boolean):             是否启用最小填充策略
 
-    Return:
+    Returns:
         metrics (dict):             模型评估指标
     """
     # 验证
@@ -466,7 +470,7 @@ def predict_img(model: ultralytics.YOLO,
         classes_path (str):             类型文件路径
         conf (float):                   检测的最小置信度阈值(默认0.25)
 
-    Return:
+    Returns:
         results (list[set]):            预测结果集合
     """
     # 分类
@@ -525,7 +529,7 @@ def predict(model: ultralytics.YOLO,
         num (int):                      分类数量
         conf (float):                   检测的最小置信度阈值(默认0.25)
 
-    Return:
+    Returns:
         results (list):                 预测结果集合
     """
 

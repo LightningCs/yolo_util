@@ -15,7 +15,7 @@ def get_great_len(prefix: str) -> int:
     Args:
         prefix (str): 图片所在路径
 
-    Return:
+    Returns:
         great_len (int): 图片长度的最大值
     """
     great_len = 0
