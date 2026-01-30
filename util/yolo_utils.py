@@ -29,6 +29,7 @@ class YoloConfig:
     DEFAULT_HSV_V = 0.4
     DEFAULT_TRANSLATE = 0.1
     DEFAULT_DEVICE = 'cpu'
+    DEFAULT_WORKERS = None
 
 
 def load_categories(classes_path: str) -> dict:
@@ -141,6 +142,10 @@ def split_datasets(classes_path: str,
     """
     
     if not os.path.exists(target_path):
+        print('创建根目录')
+        os.mkdir(target_path)
+
+    if not os.path.exists(os.path.join(target_path)):
         print('创建根目录')
         os.mkdir(target_path)
 
