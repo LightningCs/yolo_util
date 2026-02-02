@@ -1,35 +1,35 @@
+import json
 import os
 import math
 import random
 import shutil
 
-import PIL.Image
 import ultralytics
 
 import yaml
-from fastapi import UploadFile
 from ultralytics.utils.metrics import DetMetrics
+from ultralytics.engine.results import Results
 # 开启进度条
 from tqdm import tqdm
 from .label_utils import statistic_labels_num_by_images
+from PIL.ImageFile import ImageFile as PILImageFile
+from PIL.Image import Image as PILImage
 
-
-class YoloConfig:
-    """
-    配置类
-    """
-    DEFAULT_BATCH_SIZE = 16
-    DEFAULT_EPOCHS = 100
-    DEFAULT_IMGSZ = 640
-    DEFAULT_WORKERS = 0
-    DEFAULT_TRAINT_RATE = 0.7 
-    DEFAULT_VAL_RATE = 0.3
-    DEFAULT_TEST_RATE = 0.2
-    DEFAULT_CONF = 0.25
-    DEFAULT_HSV_V = 0.4
-    DEFAULT_TRANSLATE = 0.1
-    DEFAULT_DEVICE = 'cpu'
-    DEFAULT_WORKERS = None
+"""
+默认参数
+"""
+_DEFAULT_BATCH_SIZE = 16
+_DEFAULT_EPOCHS = 100
+_DEFAULT_IMGSZ = 640
+_DEFAULT_WORKERS = 0
+_DEFAULT_TRAINT_RATE = 0.7
+_DEFAULT_VAL_RATE = 0.3
+_DEFAULT_TEST_RATE = 0.2
+_DEFAULT_CONF = 0.25
+_DEFAULT_IOU = 0.7
+_DEFAULT_HSV_V = 0.4
+_DEFAULT_TRANSLATE = 0.1
+_DEFAULT_DEVICE = 'cpu'
 
 
 def load_categories(classes_path: str) -> dict:
@@ -99,6 +99,8 @@ def gen_datasets_conf(classes_path: str,
 def init_file(source_path: str,
               target_path: str) -> None:
     """
+    已废弃
+    
     初始化目录
 
     复制图片和标签到目标目录
@@ -126,8 +128,8 @@ def init_file(source_path: str,
 def split_datasets(classes_path: str,
                    datasets_path: str,
                    target_path: str,
-                   train_rate=YoloConfig.DEFAULT_TRAINT_RATE,
-                   val_rate=YoloConfig.DEFAULT_VAL_RATE):
+                   train_rate=_DEFAULT_TRAINT_RATE,
+                   val_rate=_DEFAULT_VAL_RATE):
     """
     数据集分割
 
@@ -140,10 +142,6 @@ def split_datasets(classes_path: str,
         train_rate (float):         训练集占比(默认0.7)
         val_rate (float):           验证集占比(默认0.3)
     """
-    
-    if not os.path.exists(target_path):
-        print('创建根目录')
-        os.mkdir(target_path)
 
     if not os.path.exists(os.path.join(target_path)):
         print('创建根目录')
@@ -190,18 +188,17 @@ def split_datasets(classes_path: str,
     random.shuffle(image_entity_list)
 
     # 数据集数组——其中索引 0 为训练集、1 为验证集、2 为测试集
-    datasets_arr = init_datasets_arr(image_entity_list, statistic_res, classes_set, train_rate, val_rate)
+    datasets_arr = __init_datasets_arr(image_entity_list, statistic_res, classes_set, train_rate, val_rate)
 
     # 图片划分
-    split_images(image_entity_list, datasets_arr, statistic_res, classes_set, datasets_path, target_path, train_rate, val_rate)
+    __split_images(image_entity_list, datasets_arr, statistic_res, classes_set, datasets_path, target_path, train_rate, val_rate)
 
 
-def init_datasets_arr(
-        image_entity_list: list,
-        statistic_res: dict,
-        classes_set: set,
-        train_rate: float,
-        val_rate: float) -> list:
+def __init_datasets_arr(image_entity_list: list,
+                        statistic_res: dict,
+                        classes_set: set,
+                        train_rate: float,
+                        val_rate: float) -> list:
     """
     初始化数据集数组
 
@@ -245,14 +242,14 @@ def init_datasets_arr(
     return datasets_arr
 
 
-def split_images(image_entity_list: list,
-                 datasets_arr: list,
-                 statistic_res: dict,
-                 classes_set: set,
-                 datasets_path: str,
-                 target_path: str,
-                 train_rate:  float,
-                 val_rate: float):
+def __split_images(image_entity_list: list,
+                   datasets_arr: list,
+                   statistic_res: dict,
+                   classes_set: set,
+                   datasets_path: str,
+                   target_path: str,
+                   train_rate: float,
+                   val_rate: float):
     """
     图片划分算法
 
@@ -312,19 +309,23 @@ def split_images(image_entity_list: list,
         type = "train" if max_i == 0 else ("val" if max_i == 1 else "test")
 
         if os.path.exists(os.path.join(datasets_path, 'images', f'{image_entity["image"]}.png')):
-            shutil.copy(os.path.join(datasets_path, 'images', f'{image_entity["image"]}.png'), os.path.join(target_path, 'images', type, f'{image_entity["image"]}.png'))
+            shutil.copy(os.path.join(datasets_path, 'images', f'{image_entity["image"]}.png'),
+                        os.path.join(target_path, 'images', type, f'{image_entity["image"]}.png'))
         elif os.path.exists(os.path.join(datasets_path, 'images', f'{image_entity["image"]}.jpg')):
-            shutil.copy(os.path.join(datasets_path, 'images', f'{image_entity["image"]}.jpg'), os.path.join(target_path, 'images', type, f'{image_entity["image"]}.jpg'))
+            shutil.copy(os.path.join(datasets_path, 'images', f'{image_entity["image"]}.jpg'),
+                        os.path.join(target_path, 'images', type, f'{image_entity["image"]}.jpg'))
         else:
             raise FileNotFoundError(f'{datasets_path}\\images\\{image_entity["image"]}.png or .jpg not found')
 
-        shutil.copy(os.path.join(datasets_path, 'labels', f'{image_entity["image"]}.txt'), os.path.join(target_path, 'labels', type, f'{image_entity["image"]}.txt'))
+        shutil.copy(os.path.join(datasets_path, 'labels', f'{image_entity["image"]}.txt'),
+                    os.path.join(target_path, 'labels', type, f'{image_entity["image"]}.txt'))
 
 
 def gen_yolo_datasets(source_path: str,
                       target_path: str,
-                      test_rate=YoloConfig.DEFAULT_TEST_RATE) -> None:
+                      test_rate=_DEFAULT_TEST_RATE) -> None:
     """
+    已废弃
     生成yolo数据集
 
     生成yolo数据集
@@ -363,17 +364,17 @@ def train_model(model: ultralytics.YOLO,
                 project: str,
                 lr0: float,
                 lrf: float,
-                workers=YoloConfig.DEFAULT_WORKERS,
-                device=None,
-                batch=YoloConfig.DEFAULT_BATCH_SIZE,
-                epochs=YoloConfig.DEFAULT_EPOCHS,
-                imgsz=YoloConfig.DEFAULT_IMGSZ,
+                workers=_DEFAULT_WORKERS,
+                device=_DEFAULT_DEVICE,
+                batch=_DEFAULT_BATCH_SIZE,
+                epochs=_DEFAULT_EPOCHS,
+                imgsz=_DEFAULT_IMGSZ,
                 cos_lr=False,
                 cache=False,
                 rect=False,
                 resume=False,
-                hsv_v=YoloConfig.DEFAULT_HSV_V,
-                translate=YoloConfig.DEFAULT_TRANSLATE) -> tuple[dict, str]:
+                hsv_v=_DEFAULT_HSV_V,
+                translate=_DEFAULT_TRANSLATE) -> tuple[dict, str]:
     """
     训练和验证模型
 
@@ -387,7 +388,7 @@ def train_model(model: ultralytics.YOLO,
         lr0 (float):                初始学习率
         lrf (float):                最终学习率
         workers (int):              用于数据加载的工作线程数（每个 RANK ，如果是多 GPU 训练）。影响数据预处理和输入模型的速度，在多 GPU 设置中尤其有用
-        device (int | list):        指定用于训练的计算设备：单个 GPU（device=0），多个 GPU（device=[0,1]），CPU（device=cpu），适用于 Apple 芯片的 MPS（device=mps），或自动选择最空闲的 GPU（device=-1）或多个空闲 GPU （device=[-1,-1])
+        device (str | int | list):  指定用于训练的计算设备：单个 GPU（device=0），多个 GPU（device=[0,1]），CPU（device=cpu），适用于 Apple 芯片的 MPS（device=mps），或自动选择最空闲的 GPU（device=-1）或多个空闲 GPU （device=[-1,-1])
         batch (int):                每个批次的图片数量(默认16)
         epochs (int):               训练总轮数(默认100)
         imgsz (int):                图片大小(若rect为False，则为imgsz*imgsz, 默认640)
@@ -429,7 +430,7 @@ def train_model(model: ultralytics.YOLO,
 def val_model(model: ultralytics.YOLO,
               project: str,
               name: str,
-              imgsz=YoloConfig.DEFAULT_IMGSZ,
+              imgsz=_DEFAULT_IMGSZ,
               rect=False) -> DetMetrics:
     """
     验证模型
@@ -460,100 +461,99 @@ def val_model(model: ultralytics.YOLO,
 
 def predict_img(model: ultralytics.YOLO,
                 project: str,
-                source: str | list[UploadFile],
+                source: str | list[PILImageFile],
                 classes_path: str,
-                conf=YoloConfig.DEFAULT_CONF) -> list[set]:
+                device=_DEFAULT_DEVICE,
+                conf=_DEFAULT_CONF,
+                iou=_DEFAULT_IOU,
+                dev=True) -> list | None:
     """
     图片预测
 
     对图片进行预测
 
     Args:
-        model (ultralytics.YOLO):       模型
-        project (str):                  项目路径
-        source (str | list[UploadFile]):待预测图片路径
-        classes_path (str):             类型文件路径
-        conf (float):                   检测的最小置信度阈值(默认0.25)
+        model (ultralytics.YOLO):               模型
+        project (str):                          项目路径
+        source (str | list[PILImageFile]):      待预测图片路径
+        classes_path (str):                     类型文件路径
+        device (str | int | list):              指定用于训练的计算设备：单个 GPU（device=0），多个 GPU（device=[0,1]），CPU（device=cpu），适用于 Apple 芯片的 MPS（device=mps），或自动选择最空闲的 GPU（device=-1）或多个空闲 GPU （device=[-1,-1])
+        conf (float):                           检测的最小置信度阈值(默认 0.25)
+        iou (float):                            交并比，用于非极大值限制的阈值，较低的值会通过消除重叠款来减少检测数量，这对于减少重复项目很有帮助(默认 0.7)
+        dev (bool):                             是否是开发环境，用于确认是否开启保存预测结果(默认为 True)
 
     Returns:
-        results (list[set]):            预测结果集合
+        results (list | None):                  预测结果集合
     """
     # 分类
-    categories_map = load_categories(classes_path)
+    classes_map = load_categories(classes_path)
     results = []
-    n = len(categories_map)
-
-    if isinstance(source, str):
-        for img in source:
-            tmp = set()
-            result = predict(model=model,
-                             project=project,
-                             name=img[:img.rindex('.')],
-                             source=os.path.join(source, img),
-                             num=n,
-                             conf=conf)
-
-            for i in result[0].boxes.cls:
-                tmp.add(categories_map[int(i)])
-
-            results.append(tmp)
-    elif isinstance(source, list):
-        for f in source:
-            tmp = set()
-            result = predict(model=model,
-                             project=project,
-                             name=f.filename[:f.filename.rindex('.')],
-                             source=PIL.Image.open(f.file),
-                             num=n,
-                             conf=conf)
-
-            for i in result[0].boxes.cls:
-                tmp.add(categories_map[int(i)])
-
-            results.append(tmp)
+    n = len(classes_map)
+    
+    for cur in (os.listdir(source) if isinstance(source, str) else source):
+        # 预测
+        result = __predict(model=model,
+                           project=project,
+                           name=cur[: cur.rindex('.')] if isinstance(source, str) else cur.filename[: cur.filename.rindex('.')],
+                           source=os.path.join(source, cur) if isinstance(source, str) else cur,
+                           num=n,
+                           device=device,
+                           conf=conf,
+                           iou=iou,
+                           dev=dev)
+        
+        """========业务逻辑========"""
 
     return results
 
 
-def predict(model: ultralytics.YOLO,
-            project: str,
-            name: str,
-            source: str | PIL.Image.Image,
-            num: int,
-            conf=YoloConfig.DEFAULT_CONF) -> list:
+def __predict(model: ultralytics.YOLO,
+              project: str,
+              name: str,
+              source: str | PILImage,
+              num: int,
+              device: str | int | list,
+              conf: float,
+              iou: float,
+              dev: bool) -> Results:
     """
     图片预测
 
     对图片进行预测
 
     Args:
-        model (ultralytics.YOLO):       模型
-        project (str):                  项目路径
-        name (str):                     项目名称
-        source (str | PIL.Image.Image): 待预测图片
-        num (int):                      分类数量
-        conf (float):                   检测的最小置信度阈值(默认0.25)
+        model (ultralytics.YOLO):               模型
+        project (str):                          项目路径
+        name (str):                             项目名称
+        source (str | PILImage):                待预测图片
+        num (int):                              分类数量
+        device (str | int | list):              指定用于训练的计算设备：单个 GPU（device=0），多个 GPU（device=[0,1]），CPU（device=cpu），适用于 Apple 芯片的 MPS（device=mps），或自动选择最空闲的 GPU（device=-1）或多个空闲 GPU （device=[-1,-1])
+        conf (float):                           检测的最小置信度阈值(默认 0.25)
+        iou (float):                            交并比，用于非极大值限制的阈值，较低的值会通过消除重叠款来减少检测数量，这对于减少重复项目很有帮助(默认 0.7)
+        dev (bool):                             是否是开发环境，用于确认是否开启保存预测结果
 
     Returns:
-        results (list):                 预测结果集合
+        results (Results):              预测结果
     """
 
     return model.predict(source,
-                         project=f'{project}/predict_images-{conf}',
+                         project=f'{project}/predict_images_{iou}_{conf}',
                          name=name,
+                         device=device,
                          conf=conf,
+                         iou=iou,
                          classes=[i for i in range(num)],
-                         save=True,
-                         save_txt=True,
-                         save_conf=True,
-                         save_crop=True)
+                         save=dev,
+                         save_txt=dev,
+                         save_conf=dev,
+                         save_crop=dev)[0]
 
 
 def export_model(model: ultralytics.YOLO,
                  format: str,
-                 imgsz=YoloConfig.DEFAULT_IMGSZ,
+                 imgsz=_DEFAULT_IMGSZ,
                  dynamic=False,
-                 device=YoloConfig.DEFAULT_DEVICE) -> None:
+                 device=_DEFAULT_DEVICE) -> None:
     """
     导出模型
 
