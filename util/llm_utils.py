@@ -5,7 +5,6 @@ import re
 from openai import OpenAI
 from io import BytesIO
 from PIL.ImageFile import ImageFile as PILImageFile
-from app.resources.config.config import *
 
 
 __client = OpenAI(
